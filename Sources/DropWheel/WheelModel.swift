@@ -3,11 +3,20 @@ import DropWheelCore
 
 enum Tool: String {
     case compress, metadata, edit, annotate, addBackground, crop, redact
-    case pdfCompress, pdfRotate, pdfSplit, pdfMetadata, pdfProtect
+    case removeBackground, resize, rename
+    case pdfCompress, pdfRotate, pdfSplit, pdfMetadata, pdfProtect, pdfPages, pdfWatermark
+    case videoCompress, trim, mute
 
     var label: String {
         switch self {
-        case .compress, .pdfCompress: "COMPRESS"
+        case .compress, .pdfCompress, .videoCompress: "COMPRESS"
+        case .removeBackground: "REMOVE BG"
+        case .resize: "RESIZE"
+        case .rename: "RENAME"
+        case .pdfPages: "PAGES"
+        case .pdfWatermark: "WATERMARK"
+        case .trim: "TRIM"
+        case .mute: "MUTE"
         case .metadata, .pdfMetadata: "METADATA"
         case .edit: "EDIT"
         case .annotate: "ANNOTATE"
@@ -22,7 +31,14 @@ enum Tool: String {
 
     var symbol: String {
         switch self {
-        case .compress, .pdfCompress: "arrow.down.right.and.arrow.up.left"
+        case .compress, .pdfCompress, .videoCompress: "arrow.down.right.and.arrow.up.left"
+        case .removeBackground: "person.crop.rectangle"
+        case .resize: "arrow.up.left.and.arrow.down.right"
+        case .rename: "character.cursor.ibeam"
+        case .pdfPages: "square.grid.2x2"
+        case .pdfWatermark: "seal"
+        case .trim: "timeline.selection"
+        case .mute: "speaker.slash"
         case .metadata, .pdfMetadata: "tag"
         case .edit: "slider.horizontal.3"
         case .annotate: "pencil.tip.crop.circle"
@@ -115,16 +131,25 @@ final class WheelModel {
         let k = kinds
         let multi = files.count > 1
         let tools: [Tool]
-        if k == [.image] {
-            tools = multi ? [.compress, .metadata] : [.compress, .metadata, .edit, .annotate, .addBackground, .crop, .redact]
-        } else if k == [.pdf] {
-            tools = multi ? [.pdfCompress, .pdfRotate] : [.pdfCompress, .pdfRotate, .pdfSplit, .pdfMetadata, .pdfProtect]
-        } else { tools = [] }
+        switch (k, multi) {
+        case ([.image], false): tools = [.compress, .metadata, .edit, .annotate, .addBackground, .crop, .redact, .removeBackground, .resize]
+        case ([.image], true): tools = [.compress, .metadata, .resize, .removeBackground, .rename]
+        case ([.pdf], false): tools = [.pdfCompress, .pdfRotate, .pdfSplit, .pdfMetadata, .pdfProtect, .pdfPages, .pdfWatermark]
+        case ([.pdf], true): tools = [.pdfCompress, .pdfRotate, .pdfWatermark, .rename]
+        case ([.video], false): tools = [.videoCompress, .trim, .mute]
+        case ([.video], true): tools = [.videoCompress, .mute, .rename]
+        case ([.audio], false): tools = [.trim]
+        case (_, true): tools = [.rename]
+        default: tools = []
+        }
         return tools.map { WheelItem(action: .tool($0)) }
     }
 
     var hasTools: Bool { !toolItems.isEmpty }
     var items: [WheelItem] { page == .tools && hasTools ? toolItems : convertItems }
+
+    /// Slots drawn around the ring; shared by drawing and hit-testing so they always agree.
+    var segmentCount: Int { items.isEmpty ? 4 : max(items.count, 2) }
 
     var centerText: String {
         switch status {
@@ -153,9 +178,10 @@ final class WheelModel {
         // Angle clockwise from 12 o'clock; segment 0 is centred at the top.
         var a = Double(atan2(dx, -dy))
         if a < 0 { a += 2 * .pi }
-        let step = 2 * Double.pi / Double(items.count)
-        let idx = Int(((a + step / 2) / step).rounded(.down)) % items.count
-        return .segment(idx)
+        let n = segmentCount
+        let step = 2 * Double.pi / Double(n)
+        let idx = Int(((a + step / 2) / step).rounded(.down)) % n
+        return idx < items.count ? .segment(idx) : .outside
     }
 
     func hover(_ p: CGPoint?) {

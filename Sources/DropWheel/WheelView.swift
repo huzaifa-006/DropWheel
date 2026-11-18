@@ -53,7 +53,7 @@ struct WheelView: View {
 
     var body: some View {
         let items = model.items
-        let n = max(items.count, 4)
+        let n = model.segmentCount
         let step = 360.0 / Double(n)
         ZStack {
             // Glass disc

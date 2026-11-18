@@ -5,7 +5,7 @@ import DropWheelCore
 /// checks wheel hit-testing. Used for visual QA without driving the UI by hand.
 @MainActor
 enum Snapshots {
-    static func run(folder: URL, sample: URL, pdf: URL) {
+    static func run(folder: URL, sample: URL, pdf: URL, video: URL?) {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let bg = LinearGradient(colors: [.orange, .pink, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
         var failures = 0
@@ -29,6 +29,12 @@ enum Snapshots {
         render("wheel-image-tools", ZStack { bg; WheelView(model: wheel([sample], page: .tools, hover: 5)) }, size: CGSize(width: 440, height: 440))
         render("wheel-pdf", ZStack { bg; WheelView(model: wheel([pdf], hover: 0)) }, size: CGSize(width: 440, height: 440))
         render("wheel-working", ZStack { bg; WheelView(model: wheel([sample], status: .working("Working…"))) }, size: CGSize(width: 440, height: 440))
+        if let video {
+            render("wheel-video-convert", ZStack { bg; WheelView(model: wheel([video], hover: 2)) }, size: CGSize(width: 440, height: 440))
+            render("wheel-video-tools", ZStack { bg; WheelView(model: wheel([video], page: .tools, hover: 1)) }, size: CGSize(width: 440, height: 440))
+        }
+        render("wheel-pdf-tools", ZStack { bg; WheelView(model: wheel([pdf], page: .tools, hover: 5)) }, size: CGSize(width: 440, height: 440))
+        render("wheel-multi-images", ZStack { bg; WheelView(model: wheel([sample, sample.deletingLastPathComponent().appendingPathComponent("Sample.png")], page: .tools, hover: 2)) }, size: CGSize(width: 440, height: 440))
         render("wheel-empty", ZStack { bg; WheelView(model: wheel([])) }, size: CGSize(width: 440, height: 440))
 
         let close = {}
@@ -43,6 +49,10 @@ enum Snapshots {
             ("pdf-compress", AnyView(PDFCompressEditor(urls: [pdf], close: close)), .pdfCompress),
             ("pdf-metadata", AnyView(PDFMetadataEditor(url: pdf, close: close)), .pdfMetadata),
             ("pdf-protect", AnyView(PDFProtectEditor(url: pdf, close: close)), .pdfProtect),
+            ("resize", AnyView(ResizeEditor(urls: [sample], close: close)), .resize),
+            ("rename", AnyView(RenameEditor(urls: [sample, pdf], close: close)), .rename),
+            ("pdf-pages", AnyView(PDFPagesEditor(url: pdf, close: close)), .pdfPages),
+            ("watermark", AnyView(WatermarkEditor(urls: [pdf], close: close)), .pdfWatermark),
         ]
         for (name, view, tool) in editors {
             render("editor-\(name)", EditorChrome(title: tool.label.capitalized, close: close) { view }.background(Color(white: 0.9)), size: tool.windowSize)
@@ -67,6 +77,14 @@ enum Snapshots {
         m.busy = false; m.status = .idle
         m.activate(at: CGPoint(x: c, y: c))
         if m.page != .tools { print("✗ clicking the centre didn't flip to Tools"); failures += 1 }
+        // Wheels with fewer than 4 items must still hit the slice that's drawn.
+        if let video {
+            let v = wheel([video], page: .tools)
+            for i in 0..<v.items.count {
+                let a = Double(i) * 2 * .pi / Double(v.segmentCount)
+                if v.hit(CGPoint(x: c + mid * sin(a), y: c - mid * cos(a))) != .segment(i) { print("✗ video tools slice \(i)"); failures += 1 }
+            }
+        }
         print("Wheel: convert [\(wheel([sample]).items.map(\.label).joined(separator: ", "))], tools [\(m.items.map(\.label).joined(separator: ", "))]")
         print(failures == 0 ? "All snapshot checks passed" : "\(failures) snapshot checks failed")
         exit(failures == 0 ? 0 : 1)

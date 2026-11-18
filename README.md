@@ -6,12 +6,16 @@ Built with **Swift 6 + SwiftUI**. No dependencies. Everything runs on your Mac.
 
 ## Features
 
-| Ring | Image | PDF | Word / RTF / HTML / text |
-|---|---|---|---|
-| Convert | PNG, JPG, WebP, HEIC, TIFF, GIF, BMP, PDF, DOCX (OCR), TXT (OCR) | DOCX, JPG, PNG, TXT (OCR for scans) | PDF, DOCX, TXT, RTF |
-| Tools | Compress, Metadata, Edit, Annotate, Add BG, Crop, Redact | Compress, Rotate, Split, Metadata, Protect | — |
+| Ring | Image | PDF | Video | Audio | Word / RTF / HTML / text |
+|---|---|---|---|---|---|
+| Convert | PNG, JPG, WebP, HEIC, TIFF, GIF, BMP, PDF, DOCX (OCR), TXT (OCR) | DOCX, JPG, PNG, TXT (OCR for scans) | MP4, MOV, GIF, M4A, WAV | M4A, WAV | PDF, DOCX, TXT, RTF |
+| Tools | Compress, Metadata, Edit, Annotate, Add BG, Crop, Redact, Remove BG, Resize | Compress, Rotate, Split, Metadata, Protect, Pages, Watermark | Compress, Trim, Mute | Trim | — |
 
-Several files dropped at once: **1 PDF** combines images, **MERGE** joins PDFs, and conversions or compression apply to every file.
+Several files dropped at once: **1 PDF** combines images, **MERGE** joins PDFs, **RENAME** renames them all with a pattern (`Trip-{n}`, with undo), and conversions, resize and compression apply to every file.
+
+- **Remove BG** cuts the subject out of a photo on-device (Vision) and saves a transparent PNG. Pair it with **Add BG**.
+- **Pages** shows every page as a thumbnail: drag to reorder, rotate, delete, or extract a selection to a new PDF.
+- **Trim** previews video or audio, sets start/end from the playhead and can save the current frame as PNG.
 
 - Results are saved next to the original (`Photo Cropped.jpg`, `Page 001.jpg`) and never overwrite anything.
 - **⌥⌘D** opens the wheel without dragging. Click a slice, or click the centre to choose files.
@@ -23,7 +27,7 @@ Several files dropped at once: **1 PDF** combines images, **MERGE** joins PDFs, 
 Needs macOS 14+ and Swift 6 (Xcode or the Command Line Tools).
 
 ```bash
-swift run -c release dropwheel-selftest   # runs 54 feature checks
+swift run -c release dropwheel-selftest   # runs 72 feature checks
 ./scripts/build-app.sh 1.0.0              # dist/DropWheel.app, .zip, .dmg
 open dist/DropWheel.app
 ```

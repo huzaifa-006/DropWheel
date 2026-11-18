@@ -152,10 +152,6 @@ struct ImageFit {
     }
 }
 
-extension CGImage {
-    var size: CGSize { CGSize(width: width, height: height) }
-}
-
 /// Saves a CGImage next to the source using the user's output settings, off the main thread.
 @MainActor
 func saveImage(_ image: CGImage, source: URL, suffix: String, forceAlpha: Bool = false) async throws -> URL {

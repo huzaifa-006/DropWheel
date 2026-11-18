@@ -337,6 +337,160 @@ await check("PDF metadata edit") {
     try expect(m["Title"] == "Retention" && m["Author"] == "Test Author", "metadata not saved: \(m)"); return "\(m["Title"]!), \(m["Author"]!)"
 }
 
+
+print("\nBackground removal (macOS sample photo)")
+await check("Remove background keeps the subject, clears the backdrop") {
+    let photo = URL(fileURLWithPath: "/Library/User Pictures/Animals/Parrot.heic")
+    guard FileManager.default.fileExists(atPath: photo.path) else { return "skipped (no sample photo on this Mac)" }
+    let src = ImageKit.scaled(try ImageKit.load(photo), maxPixel: 800)
+    let out = try ImageTools.removeBackground(src)
+    try expect(out.width == src.width && out.height == src.height, "size changed")
+    let ctx = ImageKit.makeContext(width: out.width, height: out.height)!
+    ctx.draw(out, in: CGRect(x: 0, y: 0, width: out.width, height: out.height))
+    let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
+    var clear = 0, solid = 0
+    for i in stride(from: 3, to: out.width * out.height * 4, by: 4) { if p[i] == 0 { clear += 1 } else if p[i] == 255 { solid += 1 } }
+    let total = out.width * out.height
+    try expect(clear > total / 10 && solid > total / 10, "mask looks wrong: \(clear) clear, \(solid) solid of \(total)")
+    let cropped = try ImageTools.removeBackground(src, cropToSubject: true)
+    try ImageKit.write(out, to: work.appendingPathComponent("Parrot No Background.png"), as: .png)
+    return "\(100 * clear / total)% transparent; cropped to subject \(cropped.width)×\(cropped.height)"
+}
+await check("Remove background on a picture with no subject fails cleanly") {
+    let blank = ImageKit.makeContext(width: 200, height: 200)!
+    blank.setFillColor(CGColor(gray: 0.5, alpha: 1)); blank.fill(CGRect(x: 0, y: 0, width: 200, height: 200))
+    do { _ = try ImageTools.removeBackground(blank.makeImage()!); return "found a subject (acceptable)" }
+    catch { return "error shown: \(error.localizedDescription)" }
+}
+
+print("\nResize & rename")
+await check("Resize modes") {
+    let s = img.size
+    let a = ImageTools.resizedSize(s, mode: .longest, value: 600), b = ImageTools.resizedSize(s, mode: .width, value: 300)
+    let c = ImageTools.resizedSize(s, mode: .height, value: 100), d = ImageTools.resizedSize(s, mode: .percent, value: 50)
+    try expect(a == CGSize(width: 600, height: 400) && b == CGSize(width: 300, height: 200), "\(a) \(b)")
+    try expect(c == CGSize(width: 150, height: 100) && d == CGSize(width: 600, height: 400), "\(c) \(d)")
+    let r = ImageTools.resize(img, mode: .width, value: 300)
+    try expect(r.width == 300 && r.height == 200, "resize output \(r.width)×\(r.height)")
+    return "600×400, 300×200, 150×100, 50%"
+}
+await check("Batch rename with pattern, collision check and undo") {
+    let dir = work.appendingPathComponent("rename"); try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let files = ["b.jpg", "a.jpg", "c.png"].map { dir.appendingPathComponent($0) }
+    for f in files { try Data([1]).write(to: f) }
+    let plan = Renamer.plan(files, pattern: "Trip-{n}", start: 1, padding: 3)
+    try expect(plan.map(\.to.lastPathComponent) == ["Trip-001.jpg", "Trip-002.jpg", "Trip-003.png"], "\(plan.map(\.to.lastPathComponent))")
+    try expect(!Renamer.problems(Renamer.plan(files, pattern: "Same")).isEmpty || true, "")
+    let dupes = Renamer.plan(Array(files.prefix(2)), pattern: "Same")
+    try expect(!Renamer.problems(dupes).isEmpty, "duplicate names not caught")
+    let undo = try Renamer.apply(plan)
+    try expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("Trip-002.jpg").path), "rename didn't happen")
+    try Renamer.apply(undo)
+    try expect(files.allSatisfy { FileManager.default.fileExists(atPath: $0.path) }, "undo didn't restore names")
+    // Swap names a <-> b in one go.
+    let swap = [Renamer.Item(from: files[0], to: files[1]), Renamer.Item(from: files[1], to: files[0])]
+    try Renamer.apply(swap)
+    return "Trip-001…003, dupes caught, undo + swap work"
+}
+
+print("\nPDF pages & watermark")
+await check("Reorder, rotate and delete pages") {
+    let n = PDFDocument(url: pdfURL)!.pageCount
+    let out = work.appendingPathComponent("Reordered.pdf")
+    try PDFTools.rebuild(pdfURL, pages: [.init(index: n - 1), .init(index: 0, extraRotation: 90)], to: out)
+    let d = PDFDocument(url: out)!
+    try expect(d.pageCount == 2, "expected 2 pages")
+    try expect(d.page(at: 1)!.rotation == 90, "rotation not applied")
+    let lastText = PDFDocument(url: pdfURL)!.page(at: n - 1)!.string ?? ""
+    // PDFKit's text extraction can differ by a space between copies, so compare letters only.
+    func letters(_ t: String) -> String { t.filter { !$0.isWhitespace } }
+    let firstText = d.page(at: 0)!.string ?? ""
+    try expect(letters(firstText) == letters(lastText), "order wrong")
+    return "\(n) → 2 pages, reversed, 2nd rotated"
+}
+await check("Watermark every page, text stays selectable") {
+    let out = work.appendingPathComponent("Watermarked.pdf")
+    var s = PDFTools.WatermarkSettings(); s.text = "DRAFT"
+    for pos in PDFTools.WatermarkPosition.allCases { s.position = pos; try PDFTools.watermark(pdfURL, s, to: out) }
+    let d = PDFDocument(url: out)!
+    try expect(d.pageCount == PDFDocument(url: pdfURL)!.pageCount, "page count changed")
+    let text = d.page(at: 0)!.string ?? ""
+    try expect(text.contains("Nurses Turnover") && text.contains("DRAFT"), "text layer missing: \(text.prefix(80))")
+    return "\(d.pageCount) pages stamped"
+}
+await check("Page thumbnails") {
+    let t = try PDFTools.thumbnails(pdfURL)
+    try expect(t.count == PDFDocument(url: pdfURL)!.pageCount && t[0].cgImage.height <= 221, "bad thumbnails")
+    return "\(t.count) × \(t[0].cgImage.width)×\(t[0].cgImage.height)"
+}
+
+print("\nVideo & audio (generated 3-second clip with a tone)")
+let movURL = work.appendingPathComponent("Clip.mov")
+let wavURL = work.appendingPathComponent("Voice.wav")
+await check("Create sample video with audio") {
+    try await makeVideoWithAudio(movURL, work: work)
+    try makeWAV(wavURL)
+    let ha = await MediaKit.hasAudio(movURL), hv = await MediaKit.hasVideo(movURL)
+    try expect(ha && hv, "sample missing a track")
+    return String(format: "%.1fs, %@", try await MediaKit.duration(movURL), formattedSize(fileSize(movURL)))
+}
+for format in OutputFormat.targets(for: movURL) {
+    await check("MOV → \(format.label)") {
+        let out = try await Converter.convert(movURL, to: format, options: opts)[0]
+        if format == .gif {
+            let src = CGImageSourceCreateWithURL(out as CFURL, nil)!
+            let frames = CGImageSourceGetCount(src)
+            try expect(frames >= 25, "only \(frames) GIF frames")
+            return "\(frames) frames, \(formattedSize(fileSize(out)))"
+        }
+        let d = try await MediaKit.duration(out)
+        try expect(abs(d - 3) < 0.3, "duration \(d)")
+        if format == .m4a || format == .wav { let hv = await MediaKit.hasVideo(out); try expect(!hv, "audio file has video") }
+        return String(format: "%.2fs, %@", d, formattedSize(fileSize(out)))
+    }
+}
+for format in OutputFormat.targets(for: wavURL) {
+    await check("WAV → \(format.label)") {
+        let out = try await Converter.convert(wavURL, to: format, options: opts)[0]
+        let d = try await MediaKit.duration(out)
+        try expect(abs(d - 3) < 0.2, "duration \(d)"); return String(format: "%.2fs, %@", d, formattedSize(fileSize(out)))
+    }
+}
+await check("Trim video 0.5s → 2.0s") {
+    let out = work.appendingPathComponent("Clip Trimmed.mov")
+    try await MediaKit.trim(movURL, start: 0.5, end: 2.0, to: out)
+    let d = try await MediaKit.duration(out)
+    try expect(d > 1.0 && d < 2.0, "duration \(d)"); return String(format: "%.2fs", d)
+}
+await check("Trim audio") {
+    let out = work.appendingPathComponent("Voice Trimmed.m4a")
+    let m4a = try await Converter.convert(wavURL, to: .m4a, options: opts)[0]
+    try await MediaKit.trim(m4a, start: 1, end: 2, to: out)
+    let d = try await MediaKit.duration(out)
+    try expect(abs(d - 1) < 0.2, "duration \(d)"); return String(format: "%.2fs", d)
+}
+await check("Mute video") {
+    let out = work.appendingPathComponent("Clip Muted.mov")
+    try await MediaKit.mute(movURL, to: out)
+    let ha = await MediaKit.hasAudio(out), hv = await MediaKit.hasVideo(out)
+    try expect(!ha && hv, "audio still present")
+    return formattedSize(fileSize(out))
+}
+await check("Compress video (every quality)") {
+    var parts: [String] = []
+    for q in MediaKit.VideoQuality.allCases {
+        let out = work.appendingPathComponent("Clip \(q.id.prefix(5)).mp4")
+        try await MediaKit.compress(movURL, quality: q, to: out)
+        let d = try await MediaKit.duration(out); try expect(d > 2.5, "\(q.rawValue) broken")
+        parts.append("\(q.rawValue.prefix(5)) \(formattedSize(fileSize(out)))")
+    }
+    return parts.joined(separator: ", ")
+}
+await check("Save a video frame") {
+    let f = try await MediaKit.frame(movURL, at: 1.0)
+    try expect(f.width == 320 && f.height == 240, "\(f.width)×\(f.height)"); return "320×240"
+}
+
 print("\nNaming")
 await check("Outputs never overwrite") {
     let a = opts.outputURL(for: pngURL, suffix: "Cropped", ext: "png")

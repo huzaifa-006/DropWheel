@@ -325,9 +325,9 @@ struct WelcomeView: View {
             VStack(spacing: 14) {
                 WheelView(model: demo).scaleEffect(0.55).frame(width: 260, height: 250).allowsHitTesting(false)
                 VStack(alignment: .leading, spacing: 10) {
-                    step("1", "Start dragging any file — an image, PDF, Word doc or text file.")
+                    step("1", "Start dragging any file — an image, PDF, video, audio, Word doc or text file.")
                     step("2", "The wheel pops up beside it. Drop on a segment to convert.")
-                    step("3", "Hover the centre to flip to Tools: crop, compress, edit, annotate, add background, redact, metadata.")
+                    step("3", "Hover the centre to flip to Tools: crop, compress, edit, annotate, remove or add background, redact, trim, watermark and more.")
                     step("4", "Results are saved next to the original. Press ⌥⌘D to open the wheel anytime.")
                 }
                 .padding(.horizontal, 30)

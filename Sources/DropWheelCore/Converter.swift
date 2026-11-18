@@ -17,6 +17,7 @@ public enum Converter {
         case .image: return [try await imageTask { try convertImage(url, to: format, options: options) }]
         case .pdf: return try await imageTask { try convertPDF(url, to: format, options: options) }
         case .document, .text: return [try await convertDocument(url, to: format, options: options)]
+        case .video, .audio: return [try await convertMedia(url, to: format, options: options)]
         case .unsupported: throw DropWheelError("\(url.lastPathComponent) isn't a supported file type.")
         }
     }
@@ -153,6 +154,18 @@ public enum Converter {
             try data.write(to: dest, options: .atomic)
         default:
             throw DropWheelError("Documents can't be converted to \(format.label).")
+        }
+        return dest
+    }
+
+    // MARK: Video and audio
+
+    static func convertMedia(_ url: URL, to format: OutputFormat, options: OutputOptions) async throws -> URL {
+        let dest = options.outputURL(for: url, ext: format.fileExtension)
+        switch format {
+        case .gif: try await MediaKit.gif(url, to: dest)
+        case .mp4, .mov, .m4a, .wav: try await MediaKit.convert(url, to: dest)
+        default: throw DropWheelError("Media can't be converted to \(format.label).")
         }
         return dest
     }

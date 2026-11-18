@@ -191,7 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             hideWheel()
             openEditor(tool, files: files)
         default:
-            model.status = .working(action == .tool(.pdfSplit) ? "Splitting…" : "Working…")
+            model.status = .working(action == .tool(.removeBackground) ? "Cutting out…" : "Working…")
             Task {
                 do {
                     let outputs = try await run(action, files, options)
@@ -209,7 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func needsWindow(_ tool: Tool) -> Bool {
-        ![.pdfRotate, .pdfSplit].contains(tool)
+        ![.pdfRotate, .pdfSplit, .removeBackground, .mute].contains(tool)
     }
 
     private func run(_ action: WheelAction, _ files: [URL], _ options: OutputOptions) async throws -> [URL] {
@@ -224,6 +224,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 return dest
             }
         case .tool(.pdfSplit): return try files.map { try PDFTools.split($0, options: options) }
+        case .tool(.removeBackground):
+            var outs: [URL] = []
+            for url in files {
+                let dest = options.outputURL(for: url, suffix: "No Background", ext: "png")
+                try await Task.detached(priority: .userInitiated) {
+                    let cut = try ImageTools.removeBackground(try ImageKit.load(url))
+                    try ImageKit.write(cut, to: dest, as: .png)
+                }.value
+                outs.append(dest)
+            }
+            return outs
+        case .tool(.mute):
+            var outs: [URL] = []
+            for url in files {
+                let ext = ["mov", "mp4", "m4v"].contains(url.pathExtension.lowercased()) ? url.pathExtension : "mov"
+                let dest = options.outputURL(for: url, suffix: "Muted", ext: ext)
+                try await MediaKit.mute(url, to: dest)
+                outs.append(dest)
+            }
+            return outs
         case .tool: return []
         }
     }
@@ -247,7 +267,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case .pdfCompress: title = "Compress PDF"; view = AnyView(PDFCompressEditor(urls: files, close: close))
             case .pdfMetadata: title = "PDF Metadata"; view = AnyView(PDFMetadataEditor(url: first, close: close))
             case .pdfProtect: title = "Protect PDF"; view = AnyView(PDFProtectEditor(url: first, close: close))
-            case .pdfRotate, .pdfSplit: return
+            case .resize: title = "Resize"; view = AnyView(ResizeEditor(urls: files, close: close))
+            case .rename: title = "Rename \(files.count) Files"; view = AnyView(RenameEditor(urls: files, close: close))
+            case .pdfPages: title = "Pages"; view = AnyView(PDFPagesEditor(url: first, close: close))
+            case .pdfWatermark: title = "Watermark"; view = AnyView(WatermarkEditor(urls: files, close: close))
+            case .videoCompress: title = "Compress Video"; view = AnyView(VideoCompressEditor(urls: files, close: close))
+            case .trim: title = "Trim"; view = AnyView(TrimEditor(url: first, close: close))
+            case .pdfRotate, .pdfSplit, .removeBackground, .mute: return
             }
         } catch {
             NSAlert(error: error).runModal()
@@ -326,6 +352,11 @@ extension Tool {
         case .metadata, .pdfMetadata: CGSize(width: 560, height: 640)
         case .pdfProtect: CGSize(width: 440, height: 420)
         case .pdfCompress: CGSize(width: 480, height: 460)
+        case .resize, .videoCompress: CGSize(width: 520, height: 520)
+        case .rename: CGSize(width: 620, height: 600)
+        case .pdfPages: CGSize(width: 820, height: 720)
+        case .pdfWatermark: CGSize(width: 640, height: 720)
+        case .trim: CGSize(width: 720, height: 640)
         case .compress: CGSize(width: 620, height: 680)
         default: CGSize(width: 760, height: 780)
         }

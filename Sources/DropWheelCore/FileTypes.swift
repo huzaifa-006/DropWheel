@@ -3,12 +3,14 @@ import UniformTypeIdentifiers
 
 /// The broad family a dropped file belongs to. Decides which wheel segments appear.
 public enum FileKind: String, Sendable {
-    case image, pdf, document, text, unsupported
+    case image, pdf, document, text, video, audio, unsupported
 
     public static func of(_ url: URL) -> FileKind {
         let ext = url.pathExtension.lowercased()
         guard let type = UTType(filenameExtension: ext) else { return .unsupported }
         if type.conforms(to: .pdf) { return .pdf }
+        if type.conforms(to: .movie) || type.conforms(to: .video) { return .video }
+        if type.conforms(to: .audio) { return .audio }
         if type.conforms(to: .image) { return .image }
         if ["docx", "doc", "rtf", "rtfd", "odt", "html", "htm", "webarchive", "wordml"].contains(ext) { return .document }
         if type.conforms(to: .rtf) || type.conforms(to: .html) { return .document }
@@ -21,11 +23,13 @@ public enum FileKind: String, Sendable {
 
 /// Every format the wheel can convert to.
 public enum OutputFormat: String, CaseIterable, Sendable, Identifiable {
-    case jpg, png, webp, heic, tiff, gif, bmp, pdf, docx, txt, rtf
+    case jpg, png, webp, heic, tiff, gif, bmp, pdf, docx, txt, rtf, mp4, mov, m4a, wav
 
     public var id: String { rawValue }
     public var label: String { rawValue.uppercased() }
     public var fileExtension: String { rawValue }
+
+    public var isMedia: Bool { [.mp4, .mov, .m4a, .wav].contains(self) }
 
     public var isImage: Bool {
         switch self {
@@ -63,6 +67,10 @@ public enum OutputFormat: String, CaseIterable, Sendable, Identifiable {
         case "docx": .docx
         case "txt": .txt
         case "rtf": .rtf
+        case "mp4", "m4v": .mp4
+        case "mov", "qt": .mov
+        case "m4a": .m4a
+        case "wav", "wave": .wav
         default: nil
         }
     }
@@ -76,6 +84,8 @@ public enum OutputFormat: String, CaseIterable, Sendable, Identifiable {
         case .pdf: list = [.docx, .jpg, .png, .txt]
         case .document: list = [.pdf, .docx, .txt, .rtf]
         case .text: list = [.pdf, .docx, .rtf]
+        case .video: list = [.mp4, .mov, .gif, .m4a, .wav]
+        case .audio: list = [.m4a, .wav]
         case .unsupported: list = []
         }
         // An image never needs to become itself, but a JPG wheel should still show 9 useful targets.
