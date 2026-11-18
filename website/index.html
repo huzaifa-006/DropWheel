@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DropWheel for Mac</title>
+<meta name="description" content="Drag any file and a wheel pops up: convert images, PDFs and documents, or crop, compress, edit, annotate, redact and add backgrounds. Free for macOS.">
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --ink: #3a2418; --muted: #7a5a4a; --accent: #ff5c1a; --accent-deep: #e8380d;
+    --bg: #fff6ef; --card: rgba(255,255,255,.6); --line: rgba(58,36,24,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #fbeee6; --muted: #c9a99a; --bg: #1c120d; --card: rgba(255,255,255,.06); --line: rgba(255,255,255,.12); }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  .hero { background: linear-gradient(135deg, #ffb347 0%, #ff6a3d 45%, #c95fa8 100%); color: #fff; padding: 72px 16px 96px; text-align: center; overflow: hidden; }
+  .hero img.icon { width: 96px; height: 96px; }
+  h1 { font-size: clamp(36px, 7vw, 64px); margin: 12px 0 8px; letter-spacing: -.02em; }
+  .hero p { font-size: clamp(17px, 2.4vw, 21px); max-width: 640px; margin: 0 auto 28px; opacity: .95; }
+  .btn { display: inline-block; background: #fff; color: var(--accent-deep); font-weight: 700; padding: 14px 26px; border-radius: 12px; text-decoration: none; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  .btn:hover { transform: translateY(-1px); }
+  .small { font-size: 14px; opacity: .9; margin-top: 12px; }
+  .small a { color: #fff; }
+  .wheels { display: flex; gap: 24px; justify-content: center; margin-top: 48px; flex-wrap: wrap; }
+  .wheels img { width: min(300px, 80vw); border-radius: 50%; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  main { max-width: 980px; margin: 0 auto; padding: 56px 16px; }
+  h2 { font-size: 28px; margin: 0 0 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); }
+  ol { padding-left: 22px; } li { margin-bottom: 8px; }
+  code { background: var(--card); border: 1px solid var(--line); padding: 2px 6px; border-radius: 6px; font-size: 14px; word-break: break-all; }
+  footer { text-align: center; color: var(--muted); padding: 32px 16px 48px; font-size: 14px; }
+</style>
+</head>
+<body>
+  <section class="hero">
+    <img class="icon" src="icon.png" alt="">
+    <h1>DropWheel</h1>
+    <p>Start dragging any file and a wheel pops up beside it. Drop it on a slice to convert it, or flip to Tools to crop, compress, edit, annotate, redact or add a background.</p>
+    <a class="btn" id="download" href="#">Download for macOS</a>
+    <div class="small">Free · macOS 14 Sonoma or later · Apple silicon &amp; Intel · <a id="releases" href="#">All releases</a></div>
+    <div class="wheels">
+      <img src="wheel-convert.png" alt="Convert wheel for an image: PNG, WEBP, HEIC, TIFF, GIF, BMP, PDF, DOCX, TXT">
+      <img src="wheel-tools.png" alt="Tools wheel: Compress, Metadata, Edit, Annotate, Add BG, Crop, Redact">
+    </div>
+  </section>
+
+  <main>
+    <h2>Everything in one gesture</h2>
+    <div class="grid">
+      <div class="card"><h3>Convert images</h3><p>JPG, PNG, WebP, HEIC, TIFF, GIF, BMP and PDF. Pull text out of a picture into TXT or Word with on-device OCR.</p></div>
+      <div class="card"><h3>Convert PDFs</h3><p>PDF to Word, JPG, PNG or TXT. Scanned pages are read with OCR. Multi-page PDFs become a folder of images.</p></div>
+      <div class="card"><h3>Documents</h3><p>Word, RTF, ODT, HTML and text files become PDF, DOCX, TXT or RTF.</p></div>
+      <div class="card"><h3>Crop &amp; Edit</h3><p>Crop with aspect presets, exact pixel sizes, rotate, flip, exposure, contrast, warmth and nine looks.</p></div>
+      <div class="card"><h3>Add background</h3><p>Turn screenshots into polished images: gradient, colour or photo backdrops, padding, rounded corners, shadow, social ratios.</p></div>
+      <div class="card"><h3>Annotate &amp; Redact</h3><p>Arrows, shapes, pen, highlighter, text. Hide emails, phone numbers and faces automatically.</p></div>
+      <div class="card"><h3>Compress</h3><p>Shrink images or PDFs with a live size estimate before saving.</p></div>
+      <div class="card"><h3>Metadata &amp; privacy</h3><p>See EXIF data, remove GPS location or strip everything, without re-encoding the photo.</p></div>
+      <div class="card"><h3>PDF tools</h3><p>Merge, split, rotate, password-protect and edit document info.</p></div>
+    </div>
+
+    <h2>Install</h2>
+    <ol>
+      <li>Download <b>DropWheel.dmg</b> and drag DropWheel into Applications.</li>
+      <li>The first time, right-click DropWheel and choose <b>Open</b>. It isn't notarized by Apple yet, so macOS asks once.<br>
+        If macOS still blocks it, run <code>xattr -dr com.apple.quarantine /Applications/DropWheel.app</code> in Terminal.</li>
+      <li>DropWheel lives in the menu bar. Drag a file, or press <b>⌥⌘D</b>.</li>
+    </ol>
+  </main>
+
+  <footer>Everything runs on your Mac. Files are never uploaded.</footer>
+
+<script>
+  // Works on any GitHub Pages site: https://OWNER.github.io/REPO/
+  (function () {
+    var owner = location.hostname.split(".")[0];
+    var repo = location.pathname.split("/").filter(Boolean)[0] || (owner + ".github.io");
+    if (!location.hostname.endsWith("github.io")) return;
+    var base = "https://github.com/" + owner + "/" + repo + "/releases";
+    document.getElementById("download").href = base + "/latest/download/DropWheel.dmg";
+    document.getElementById("releases").href = base;
+  })();
+</script>
+</body>
+</html>
